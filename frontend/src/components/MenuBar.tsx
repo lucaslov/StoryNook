@@ -11,7 +11,8 @@ import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
 import MenuItem from '@mui/material/MenuItem';
 import MenuIcon from '@mui/icons-material/Menu';
-const pages = ['My Library', 'Movie Suggestions', 'Chat'];
+import { Link } from 'react-router-dom';
+
 const settings = ['Account', 'Logout'];
 
 function MenuBar() {
@@ -20,28 +21,24 @@ function MenuBar() {
 
     const handleOpenNavMenu = (event: React.MouseEvent<HTMLElement>) => {
         setAnchorElNav(event.currentTarget);
-        console.log(event.currentTarget);
     };
     const handleOpenUserMenu = (event: React.MouseEvent<HTMLElement>) => {
         setAnchorElUser(event.currentTarget);
-        console.log(event.currentTarget);
     };
 
     const handleCloseNavMenu = () => {
         setAnchorElNav(null);
-        console.log("aaa")
     };
 
     const handleCloseUserMenu = () => {
         setAnchorElUser(null);
-        console.log("bbb")
-
     };
 
     return (
         <AppBar position="static">
             <Container maxWidth="xl">
                 <Toolbar disableGutters>
+                    <Link to={`/`}>
                     <Typography
                         variant="h6"
                         noWrap
@@ -53,12 +50,13 @@ function MenuBar() {
                             fontFamily: 'monospace',
                             fontWeight: 700,
                             letterSpacing: '.3rem',
-                            color: 'inherit',
+                            color: 'white',
                             textDecoration: 'none',
                         }}
                     >
                         StoryNook
                     </Typography>
+                    </Link>
 
                     <Box sx={{ flexGrow: 1, display: { xs: 'flex', md: 'none' } }}>
                         <IconButton
@@ -89,41 +87,50 @@ function MenuBar() {
                                 display: { xs: 'block', md: 'none' },
                             }}
                         >
-                            {pages.map((page) => (
-                                <MenuItem key={page} onClick={handleCloseNavMenu}>
-                                    <Typography textAlign="center">{page}</Typography>
+                            <Link to={`/MyLibrary`}>
+                                <MenuItem key={'MovieLibrary'} onClick={handleCloseNavMenu}>
+                                    <Typography textAlign="center">My Library</Typography>
                                 </MenuItem>
-                            ))}
+                            </Link>
+                            <MenuItem key={'MovieSuggestions'} onClick={handleCloseNavMenu}>
+                                <Typography textAlign="center">
+                                    <Link to={`/MovieSuggestions`}>Movie Suggestions</Link>
+                                </Typography>
+                            </MenuItem>
+                            <MenuItem key={'Chat'} onClick={handleCloseNavMenu}>
+                                <Typography textAlign="center">
+                                    <Link to={`/Chat`}>Chat</Link>
+                                </Typography>
+                            </MenuItem>
                         </Menu>
                     </Box>
-                    <Typography
-                        variant="h5"
-                        noWrap
-                        component="a"
-                        href="#app-bar-with-responsive-menu"
-                        sx={{
-                            mr: 2,
-                            display: { xs: 'flex', md: 'none' },
-                            flexGrow: 1,
-                            fontFamily: 'monospace',
-                            fontWeight: 700,
-                            letterSpacing: '.3rem',
-                            color: 'inherit',
-                            textDecoration: 'none',
-                        }}
-                    >
-                        LOGO
-                    </Typography>
+
                     <Box sx={{ flexGrow: 1, display: { xs: 'none', md: 'flex' } }}>
-                        {pages.map((page) => (
+                        <Link to={'/MovieLibrary'}>
                             <Button
-                                key={page}
+                                key='MovieLibrary'
                                 onClick={handleCloseNavMenu}
-                                sx={{ my: 2, color: 'white', display: 'block' }}
-                            >
-                                {page}
+                                sx={{ my: 2, color: 'white', display: 'block' }}>
+                                My Library
                             </Button>
-                        ))}
+                        </Link>
+
+                        <Link to={'/MovieSuggestions'}>
+                            <Button
+                                key='MovieSuggestions'
+                                onClick={handleCloseNavMenu}
+                                sx={{ my: 2, color: 'white', display: 'block' }}>
+                                Movie Suggestions
+                            </Button>
+                        </Link>
+                        <Link to={'/Chat'}>
+                            <Button
+                                key='Chat'
+                                onClick={handleCloseNavMenu}
+                                sx={{ my: 2, color: 'white', display: 'block' }}>
+                                Chat
+                            </Button>
+                        </Link>
                     </Box>
 
                     <Box sx={{ flexGrow: 0 }}>

@@ -1,6 +1,6 @@
 from typing import Union
 from pydantic import BaseModel, Field
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi_pagination import Page, add_pagination, paginate
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -30,12 +30,17 @@ movies = [
     MovieModel(id=2, title='Harry Potter', posterPath='/8Xmkc1HvCOpMlbFvVabrtr6HAsp.jpg'),
 ]
 
-@app.get("/movies/{movieId}")
-def get_movie(item_id: int, q: Union[str, None] = None):
-    return {"item_id": item_id, "q": q}
+@app.get("/movies/{movie_id}")
+def get_movie(movie_id: int):
+    movie = next((movie for movie in movies if movie.id == movie_id), None)
+    if not movie:
+        raise HTTPException(status_code=404, detail="Movie not found")
+    return movie
 
 @app.get('/movies')  
-async def get_movies() -> Page[MovieModel]:  # use Page[UserOut] as return type annotation
-    return paginate(movies)  # use paginate function to paginate your data
+def get_movies(q: Union[str, None] = None) -> Page[MovieModel]:
+    if q:
+        return paginate(list((movie for movie in movies if q.lower() in movie.title.lower())))
+    return paginate(movies)
 
 add_pagination(app)

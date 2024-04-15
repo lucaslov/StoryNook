@@ -1,12 +1,12 @@
 import './App.css';
-import MenuBar from './components/MenuBar';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
-import CssBaseline from '@mui/material/CssBaseline';
-import { green, grey } from '@mui/material/colors';
-import MovieLibrary from './components/MovieLibrary';
 import { Route, Routes } from 'react-router';
+import { ThemeProvider, createTheme } from '@mui/material/styles';
+import { green, grey } from '@mui/material/colors';
+import CssBaseline from '@mui/material/CssBaseline';
+
+import MenuBar from './components/MenuBar';
+import MovieLibrary from './components/MovieLibrary';
 import Home from './components/Home';
-import MovieSuggestions from './components/MovieSuggestions';
 import Chat from './components/Chat';
 
 const theme = createTheme({
@@ -29,7 +29,6 @@ function App() {
       <Routes>
         <Route path='/' element={<Home />}/>
         <Route path='/MovieLibrary' element={<MovieLibrary />}/>
-        <Route path='/MovieSuggestions' element={<MovieSuggestions />}/>
         <Route path='/Chat' element={<Chat />}/>
       </Routes>
     </ThemeProvider>

@@ -1,16 +1,7 @@
-import * as React from 'react';
-import AppBar from '@mui/material/AppBar';
-import Box from '@mui/material/Box';
-import Toolbar from '@mui/material/Toolbar';
-import IconButton from '@mui/material/IconButton';
-import Typography from '@mui/material/Typography';
-import Menu from '@mui/material/Menu';
-import Container from '@mui/material/Container';
-import Avatar from '@mui/material/Avatar';
-import Button from '@mui/material/Button';
-import Tooltip from '@mui/material/Tooltip';
-import MenuItem from '@mui/material/MenuItem';
-import MenuIcon from '@mui/icons-material/Menu';
+import React from 'react';
+import { AppBar, Toolbar, Typography, Container, Avatar, Button, Tooltip, MenuItem } from '@mui/material';
+import { Box, IconButton, Menu } from '@mui/material';
+import { Menu as MenuIcon } from '@mui/icons-material';
 import { Link } from 'react-router-dom';
 
 const settings = ['Account', 'Logout'];
@@ -42,8 +33,7 @@ function MenuBar() {
                     <Typography
                         variant="h6"
                         noWrap
-                        component="a"
-                        href="#app-bar-with-responsive-menu"
+                        component="span"
                         sx={{
                             mr: 2,
                             display: { xs: 'none', md: 'flex' },
@@ -92,11 +82,6 @@ function MenuBar() {
                                     <Typography textAlign="center">My Library</Typography>
                                 </MenuItem>
                             </Link>
-                            <MenuItem key={'MovieSuggestions'} onClick={handleCloseNavMenu}>
-                                <Typography textAlign="center">
-                                    <Link to={`/MovieSuggestions`}>Movie Suggestions</Link>
-                                </Typography>
-                            </MenuItem>
                             <MenuItem key={'Chat'} onClick={handleCloseNavMenu}>
                                 <Typography textAlign="center">
                                     <Link to={`/Chat`}>Chat</Link>
@@ -115,14 +100,6 @@ function MenuBar() {
                             </Button>
                         </Link>
 
-                        <Link to={'/MovieSuggestions'}>
-                            <Button
-                                key='MovieSuggestions'
-                                onClick={handleCloseNavMenu}
-                                sx={{ my: 2, color: 'white', display: 'block' }}>
-                                Movie Suggestions
-                            </Button>
-                        </Link>
                         <Link to={'/Chat'}>
                             <Button
                                 key='Chat'

@@ -1,11 +1,3 @@
-
-# checking out the columns in datasets
-# for x in ratings.take(1).as_numpy_iterator():
-#   pprint.pprint(x)
-  
-# for x in movies.take(1).as_numpy_iterator():
-#   pprint.pprint(x)
-
 import tensorflow as tf
 import tensorflow_datasets as tfds
 import numpy as np
@@ -25,28 +17,36 @@ movies = movies.map(lambda x: x["movie_id"])
 movie_id_vocabulary = tf.keras.layers.StringLookup()
 movie_id_vocabulary.adapt(movies.batch(1000))
 
-# Define model that uses movie embeddings.
+# Define model that uses movie embeddings with user embeddings.
 class MovieLensRankingModel(tf.keras.Model):
     def __init__(self, movie_vocab_size):
         super().__init__()
-        self.movie_embed = tf.keras.layers.Embedding(movie_vocab_size, 64, embeddings_regularizer='l2')
+        self.movie_embed = tf.keras.layers.Embedding(movie_vocab_size, 128, embeddings_regularizer='l2')
+        self.dense_layers = tf.keras.Sequential([
+            tf.keras.layers.Dense(256, activation='relu'),
+            tf.keras.layers.Dropout(0.5),
+            tf.keras.layers.Dense(128, activation='relu'),
+        ])
 
     def call(self, features: tf.Tensor) -> tf.Tensor:
-        return self.movie_embed(features)
+        movie_embeddings = self.movie_embed(features)
+        return self.dense_layers(movie_embeddings)
 
 # Initialize and compile the model.
 model = MovieLensRankingModel(movie_id_vocabulary.vocabulary_size())
 model.compile(optimizer=tf.keras.optimizers.Adam(0.001), loss='mean_squared_error')
 
-# Prepare dataset for training.
+# Prepare dataset for training with negative sampling.
 def prepare_dataset():
     movie_ids = ratings.map(lambda x: movie_id_vocabulary(x["movie_id"]))
     user_ratings = ratings.map(lambda x: x["user_rating"])
-    return tf.data.Dataset.zip((movie_ids, user_ratings)).shuffle(10000).batch(32)
+    dataset = tf.data.Dataset.zip((movie_ids, user_ratings))
+    dataset = dataset.shuffle(10000).batch(32).cache().prefetch(tf.data.AUTOTUNE)
+    return dataset
 
 # Train the model with historical data.
 ds_train = prepare_dataset()
-model.fit(ds_train, epochs=10)
+model.fit(ds_train, epochs=20)
 
 # Recommendation function using cosine similarity.
 def recommend_movies(user_ratings):
@@ -63,8 +63,7 @@ def recommend_movies(user_ratings):
     # Convert indices to movie IDs
     vocab = movie_id_vocabulary.get_vocabulary()
     top_movie_ids = tf.gather(vocab, top_indices)
-    return top_movie_ids.numpy()
-
+    return [mid.decode('utf-8') for mid in top_movie_ids.numpy()]
 
 # Example input: list of (movie_id, rating)
 sample_ratings = [("82", 5.0)]
@@ -72,9 +71,6 @@ sample_ratings = [("82", 5.0)]
 # Get recommendations based on provided ratings.
 recommended_movie_ids = recommend_movies(sample_ratings)
 print("Recommended Movie IDs:", recommended_movie_ids)
-
-  
-
 
 # Function to get movie names from movie IDs.
 def get_movie_names(movie_ids):
@@ -86,5 +82,5 @@ chosen_movie_names = get_movie_names(chosen_movie_ids)
 print("Chosen Movie Names:", chosen_movie_names)
 
 # Display the names of the recommended movies.
-recommended_movie_names = get_movie_names([mid.decode('utf-8') for mid in recommended_movie_ids])
+recommended_movie_names = get_movie_names(recommended_movie_ids)
 print("Recommended Movie Names:", recommended_movie_names)

@@ -39,6 +39,11 @@ movies = movies.map(lambda x: x["movie_id"])
 movie_id_vocabulary = tf.keras.layers.StringLookup()
 movie_id_vocabulary.adapt(movies.batch(1000))
 
+vocab = movie_id_vocabulary.get_vocabulary()
+with open('movie_vocabulary.txt', 'w', encoding='utf-8') as f:
+    for item in vocab:
+        f.write(item + "\n")
+
 # Define a simplified model focusing only on movie information
 class MovieLensMovieOnlyModel(tf.keras.Model):
     def __init__(self, movie_vocab_size, genre_vocab_size):
@@ -86,13 +91,18 @@ def prepare_dataset():
 ds_train = prepare_dataset()
 model.fit(ds_train, epochs=20)
 
+model.save('my_movielens_model')
+
+# Check by loading the model
+loaded_model = tf.keras.models.load_model('my_movielens_model')
+
 # Recommendation function using cosine similarity adjusted for the movie-only model.
 def recommend_movies(input_movie_ids):
     input_movie_ids_tensor = movie_id_vocabulary(tf.constant(input_movie_ids, dtype=tf.string))
-    input_movie_embeddings = model.movie_embed(input_movie_ids_tensor)
+    input_movie_embeddings = loaded_model.movie_embed(input_movie_ids_tensor)
     
     mean_embedding = tf.reduce_mean(input_movie_embeddings, axis=0, keepdims=True)
-    all_movie_embeddings = model.movie_embed(tf.range(start=0, limit=movie_id_vocabulary.vocabulary_size(), dtype=tf.int32))
+    all_movie_embeddings = loaded_model.movie_embed(tf.range(start=0, limit=movie_id_vocabulary.vocabulary_size(), dtype=tf.int32))
 
     similarity = tf.keras.losses.cosine_similarity(mean_embedding, all_movie_embeddings)
     top_indices = tf.argsort(similarity, direction='DESCENDING')[:10]

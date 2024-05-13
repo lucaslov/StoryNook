@@ -17,7 +17,7 @@ const MovieLibrary = () => {
     const [numberOfPages, setNumberOfPages] = useState(1);
     
     useEffect(() => {
-        fetchMovies().then((data) => {
+        fetchMovies(searchValue, DEFAULT_ITEM_LEN, currentPage).then((data) => {
             setMovies(data);
             setMoviesToShow(data.items);
             setNumberOfPages(data.pages);
@@ -61,10 +61,19 @@ const MovieLibrary = () => {
 
     return (
         <>
-            <Box sx={{ flexGrow: 1, marginTop: 3 }} display="flex" alignItems="center" minHeight="100vh" flexDirection={'column'}>
-                <TextField value={searchValue} onChange={handleSearchValueChange} sx={{ mb: 3 }} id="outlined-basic" label="Movie Search" variant="outlined" />
-                <Button onClick={handleMovieSearch} variant="contained">Search</Button>
-                <Button onClick={handleClear} variant="contained">Clear</Button>
+            <Box sx={{ flexGrow: 1, marginTop: 3, display: 'flex', alignItems: 'center', flexDirection: 'column', minHeight: '100vh' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', marginBottom: 3 }}>
+                    <TextField
+                        value={searchValue}
+                        onChange={handleSearchValueChange}
+                        sx={{ width: '40%', marginRight: 1 }}
+                        id="outlined-basic"
+                        label="Movie Search"
+                        variant="outlined"
+                    />
+                    <Button onClick={handleMovieSearch} variant="contained" sx={{ height: '56px' }}>Search</Button>
+                    <Button onClick={handleClear} variant="contained" sx={{ height: '56px', marginLeft: 1 }} color='secondary'>Clear</Button>
+                </Box>
                 <Grid container spacing={2} justifyContent={"center"}>
                     {
                         moviesToShow.length !== 0

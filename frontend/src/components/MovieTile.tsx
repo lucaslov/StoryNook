@@ -40,17 +40,26 @@ const MovieTile = ({ imageSrc, title }: { imageSrc: string, title: string }) => 
     }, [imageSrc]);
 
     return (
-        <Card sx={{ width: '23vw',
+        <Card sx={{
+            width: '20vw',  // Fixed width for consistent sizing
+            height: '35vh', // Fixed height to maintain uniformity
             display: 'flex',
-            alignItems: 'center'}}>
+            flexDirection: 'column',  // Ensures that content stacks vertically
+            alignItems: 'center',
+            overflow: 'hidden',  // Prevents content from spilling out
+        }}>
             <CardActionArea>
                 <CardMedia
                     component="img"
-                    height="140"
+                    height="200vh"
                     image={currentImageSrc}
                 />
                 <CardContent>
-                    <Typography gutterBottom variant="h5" component="div">
+                    <Typography gutterBottom variant="h5" component="div" sx={{
+                        whiteSpace: 'nowrap',  // Prevents text from wrapping
+                        overflow: 'hidden',    // Hides overflow
+                        textOverflow: 'ellipsis',  // Adds an ellipsis for text that overflows
+                    }}>
                         {title}
                     </Typography>
                 </CardContent>
@@ -74,7 +83,7 @@ const MovieTile = ({ imageSrc, title }: { imageSrc: string, title: string }) => 
                 )}
             </CardActions>
         </Card>
-    )
+    );
 }
 
 export default MovieTile;

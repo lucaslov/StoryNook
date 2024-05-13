@@ -4,9 +4,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi_pagination import Page, add_pagination, paginate
 from fastapi.middleware.cors import CORSMiddleware
 import tensorflow as tf
-import tensorflow_datasets as tfds
 import json
-import sys
 import uvicorn
 app = FastAPI()
 

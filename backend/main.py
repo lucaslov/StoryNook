@@ -5,20 +5,36 @@ from fastapi_pagination import Page, add_pagination, paginate
 from fastapi.middleware.cors import CORSMiddleware
 import tensorflow as tf
 import json
+import csv
 import uvicorn
-app = FastAPI()
 
+# Load the trained model
 model = tf.keras.models.load_model('my_movielens_model')
+
+# Initialize and load the movie vocabulary
 movie_id_vocabulary = tf.keras.layers.StringLookup()
 with open('movie_vocabulary.txt', 'r', encoding='utf-8') as f:
     vocab = [line.strip() for line in f]
 movie_id_vocabulary.set_vocabulary(vocab)
 
+# Load poster URL mappings from CSV
+poster_url_map = {}
+with open('posters.csv', 'r', encoding='utf-8') as file:
+    csv_reader = csv.reader(file)
+    for row in csv_reader:
+        movie_id = row[0]  # Ensure this is a string to match your data and model
+        poster_url = row[1]
+        poster_url_map[movie_id] = poster_url
+
+app = FastAPI()
+
+# Define CORS origins for local development
 origins = [
     "http://localhost",
     "http://localhost:5173",
 ]
 
+# Apply CORS middleware to the app
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -27,31 +43,40 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Define the MovieModel using the actual data keys directly
 class MovieModel(BaseModel):
-    id: str = Field(alias='movie_id')
-    title: str = Field(alias='movie_title')
-    posterPath: str = Field(default="https://example.com/default_poster.jpg")
+    id: str  # Direct usage without alias
+    title: str  # Direct usage without alias
+    posterPath: str  # Will be set dynamically with the correct poster path
 
-# Load the movie data from the JSON file
+# Load the movie data and create MovieModel instances
+movies = []
 with open('movies.json', 'r', encoding='utf-8') as f:
     movies_data = json.load(f)
-    
-movies = [MovieModel(**movie) for movie in movies_data]
+    for movie in movies_data:
+        # Fetch the poster URL from the map or use a default if not found
+        poster_path = poster_url_map.get(movie['movie_id'], "https://example.com/default_poster.jpg")
+        # Create MovieModel instances
+        movies.append(MovieModel(id=movie['movie_id'], title=movie['movie_title'], posterPath=poster_path))
 
 @app.get("/movies/{movie_id}")
 def get_movie(movie_id: str):
+    # Fetch a single movie by ID or raise a 404 if not found
     movie = next((movie for movie in movies if movie.id == movie_id), None)
     if not movie:
         raise HTTPException(status_code=404, detail="Movie not found")
     return movie
 
-@app.get('/movies')  
+@app.get('/movies')
 def get_movies(q: Union[str, None] = None) -> Page[MovieModel]:
+    # Optionally filter movies by query string or return all
     if q:
-        return paginate(list((movie for movie in movies if q.lower() in movie.title.lower())))
+        filtered_movies = [movie for movie in movies if q.lower() in movie.title.lower()]
+        return paginate(filtered_movies)
     return paginate(movies)
 
 def recommend_movies(input_movie_ids):
+    # Convert movie IDs to tensor and compute embedding similarities
     input_movie_ids_tensor = movie_id_vocabulary(tf.constant(input_movie_ids, dtype=tf.string))
     input_movie_embeddings = model.movie_embed(input_movie_ids_tensor)
     
@@ -61,18 +86,21 @@ def recommend_movies(input_movie_ids):
     similarity = tf.keras.losses.cosine_similarity(mean_embedding, all_movie_embeddings)
     top_indices = tf.argsort(similarity, direction='DESCENDING')[:10]
 
+    # Fetch and decode the top recommended movie IDs
     vocab = movie_id_vocabulary.get_vocabulary()
     top_movie_ids = tf.gather(vocab, top_indices)
     return [mid.decode('utf-8') for mid in top_movie_ids.numpy()]
 
 @app.get("/recommend")
 async def get_recommendations(movie_ids: str):
-    # Convert the comma-separated string of movie IDs to a list
+    # Split comma-separated string to list and get recommendations
     movie_ids_list = movie_ids.split(',')
     recommendations = recommend_movies(movie_ids_list)
     return {"recommended_movie_ids": recommendations}
 
+# Add pagination to the app
 add_pagination(app)
 
 if __name__ == "__main__":
+    # Run the app with Uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

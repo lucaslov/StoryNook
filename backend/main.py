@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Union, List
 from pydantic import BaseModel, Field
 from fastapi import FastAPI, HTTPException
 from fastapi_pagination import Page, add_pagination, paginate
@@ -49,6 +49,9 @@ class MovieModel(BaseModel):
     title: str  # Direct usage without alias
     posterPath: str  # Will be set dynamically with the correct poster path
 
+class RecommendationRequest(BaseModel):
+    movie_ids: List[str] = Field(default=[], description="List of movie IDs for which to get recommendations.")
+
 # Load the movie data and create MovieModel instances
 movies = []
 with open('movies.json', 'r', encoding='utf-8') as f:
@@ -91,16 +94,17 @@ def recommend_movies(input_movie_ids):
     top_movie_ids = tf.gather(vocab, top_indices)
     return [mid.decode('utf-8') for mid in top_movie_ids.numpy()]
 
-@app.get("/recommend")
-async def get_recommendations(movie_ids: str):
-    # Split comma-separated string to list and get recommendations
-    movie_ids_list = movie_ids.split(',')
+@app.post("/recommend")
+async def get_recommendations(request: RecommendationRequest):
+    # Use the parsed movie_ids list from the request body
+    movie_ids_list = request.movie_ids
+    if not movie_ids_list:
+        raise HTTPException(status_code=400, detail="No movie IDs provided for recommendations.")
+    
     recommendations = recommend_movies(movie_ids_list)
     return {"recommended_movie_ids": recommendations}
 
-# Add pagination to the app
 add_pagination(app)
 
 if __name__ == "__main__":
-    # Run the app with Uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

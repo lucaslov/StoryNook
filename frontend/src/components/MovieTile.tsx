@@ -41,7 +41,7 @@ const MovieTile = ({ imageSrc, title }: { imageSrc: string, title: string }) => 
 
     return (
         <Card sx={{
-            width: '20vw',  // Fixed width for consistent sizing
+            width: '15vw',  // Fixed width for consistent sizing
             height: '35vh', // Fixed height to maintain uniformity
             display: 'flex',
             flexDirection: 'column',  // Ensures that content stacks vertically

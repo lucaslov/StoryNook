@@ -4,9 +4,9 @@ import { ExtendedMovie } from '../interfaces/ExtendedMovie';
 
 interface SelectedMoviesProps {
     selectedMovies: ExtendedMovie[];
-    removeMovie: (id: number) => void; // Make sure type is correct: number or string based on your ID type
+    removeMovie: (id: number) => void;
     triggerRecommendations: () => void;
-    clearSelectedMovies: () => void; // Function to clear all selected movies
+    clearSelectedMovies: () => void;
 }
 
 const SelectedMovies = ({ selectedMovies, removeMovie, triggerRecommendations, clearSelectedMovies }: SelectedMoviesProps) => {

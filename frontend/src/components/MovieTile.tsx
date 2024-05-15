@@ -41,12 +41,12 @@ const MovieTile = ({ imageSrc, title }: { imageSrc: string, title: string }) => 
 
     return (
         <Card sx={{
-            width: '15vw',  // Fixed width for consistent sizing
-            height: '35vh', // Fixed height to maintain uniformity
+            width: '15vw',
+            height: '35vh',
             display: 'flex',
-            flexDirection: 'column',  // Ensures that content stacks vertically
+            flexDirection: 'column',
             alignItems: 'center',
-            overflow: 'hidden',  // Prevents content from spilling out
+            overflow: 'hidden',
         }}>
             <CardActionArea>
                 <CardMedia
@@ -56,9 +56,9 @@ const MovieTile = ({ imageSrc, title }: { imageSrc: string, title: string }) => 
                 />
                 <CardContent>
                     <Typography gutterBottom variant="h5" component="div" sx={{
-                        whiteSpace: 'nowrap',  // Prevents text from wrapping
-                        overflow: 'hidden',    // Hides overflow
-                        textOverflow: 'ellipsis',  // Adds an ellipsis for text that overflows
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
                     }}>
                         {title}
                     </Typography>

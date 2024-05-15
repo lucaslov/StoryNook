@@ -1,4 +1,4 @@
-from typing import Union, List
+from typing import Union, List, Dict
 from pydantic import BaseModel, Field
 from fastapi import FastAPI, HTTPException
 from fastapi_pagination import Page, add_pagination, paginate
@@ -54,13 +54,19 @@ class RecommendationRequest(BaseModel):
 
 # Load the movie data and create MovieModel instances
 movies = []
+movie_map = {}
 with open('movies.json', 'r', encoding='utf-8') as f:
     movies_data = json.load(f)
     for movie in movies_data:
         # Fetch the poster URL from the map or use a default if not found
         poster_path = poster_url_map.get(movie['movie_id'], "https://example.com/default_poster.jpg")
         # Create MovieModel instances
-        movies.append(MovieModel(id=movie['movie_id'], title=movie['movie_title'], posterPath=poster_path))
+        movie_instance = MovieModel(id=movie['movie_id'], title=movie['movie_title'], posterPath=poster_path)
+        movies.append(movie_instance)
+        movie_map[movie['movie_id']] = {
+            "title": movie['movie_title'],
+            "posterPath": poster_path
+        }
 
 @app.get("/movies/{movie_id}")
 def get_movie(movie_id: str):
@@ -102,7 +108,17 @@ async def get_recommendations(request: RecommendationRequest):
         raise HTTPException(status_code=400, detail="No movie IDs provided for recommendations.")
     
     recommendations = recommend_movies(movie_ids_list)
-    return {"recommended_movie_ids": recommendations}
+    
+    # Map ids to posterPath and title
+    recommended_movies = [
+        {
+            "title": movie_map.get(movie_id, {}).get("title", "Unknown Title"),
+            "posterPath": movie_map.get(movie_id, {}).get("posterPath")
+        } 
+        for movie_id in recommendations
+    ]
+
+    return {"recommended_movies": recommended_movies}
 
 add_pagination(app)
 

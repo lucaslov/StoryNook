@@ -79,7 +79,6 @@ const MovieLibrary = () => {
         setSelectedMovies(selectedMovies.filter(movie => movie.id !== id));
     };
 
-
     const triggerRecommendations = async () => {
         const movieIds = selectedMovies.map(movie => movie.id);
         const requestBody = JSON.stringify({ movie_ids: movieIds });
@@ -100,25 +99,18 @@ const MovieLibrary = () => {
             }
 
             const data = await response.json();
-            if (!data.recommended_movie_ids) {
+            if (!data.recommended_movies) {
                 console.error('Unexpected response format:', data);
                 return;
             }
 
-            // Assuming you have a way to map movie IDs to movie details
-            // For the example below, we simulate this mapping
-            const fetchedRecommendations = data.recommended_movie_ids.map((id: Number) => {
-                // Simulate fetching movie details; replace with actual fetch if necessary
-                const movie = moviesToShow.find(m => m.id === id);
-                return movie ? {
-                    ...movie,
-                    currentImageSrc: movie.posterPath || PLACEHOLDER_IMAGE  // Ensure fallback to placeholder
-                } : {
-                    id,
-                    title: `Movie ${id}`,
-                    currentImageSrc: PLACEHOLDER_IMAGE
+            const fetchedRecommendations = await Promise.all(data.recommended_movies.map(async (mov: { title: string, posterPath: string }) => {
+                const isValid = await checkEndpointStatus(mov.posterPath);
+                return {
+                    title: mov.title,
+                    currentImageSrc: isValid ? mov.posterPath : PLACEHOLDER_IMAGE
                 };
-            });
+            }));
 
             setRecommendations(fetchedRecommendations);
             setShowRecommendationsPopup(true);
@@ -127,13 +119,12 @@ const MovieLibrary = () => {
         }
     };
 
-
     const closeRecommendationsPopup = () => {
         setShowRecommendationsPopup(false);
     };
 
     const clearSelectedMovies = () => {
-        setSelectedMovies([]); // Clear the array of selected movies
+        setSelectedMovies([]);
     };
 
     return (
@@ -154,7 +145,7 @@ const MovieLibrary = () => {
                 <Box sx={{ width: '70vw', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                     <Grid container spacing={2} justifyContent={"center"}>
                         {moviesToShow.length !== 0 ?
-                            moviesToShow.map((movie: LibraryMovie) => (  // Explicit type here to satisfy TypeScript
+                            moviesToShow.map((movie: LibraryMovie) => (
                                 <Grid item key={movie.id} onClick={() => addMovieToSelected(movie)}>
                                     <MovieTile imageSrc={movie.posterPath} title={movie.title} key={movie.id} />
                                 </Grid>

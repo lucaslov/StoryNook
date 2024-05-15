@@ -1,10 +1,10 @@
 import { Box, Typography, Card, CardContent, CardMedia, IconButton } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
-import { ExtendedMovie } from '../interfaces/ExtendedMovie';  // Ensure path is correct
+import { ExtendedMovie } from '../interfaces/ExtendedMovie';
 
 interface RecommendationsPopupProps {
   recommendations: ExtendedMovie[];
-  closePopup: () => void;  // Function to close the popup
+  closePopup: () => void;
 }
 
 const RecommendationsPopup = ({ recommendations, closePopup }: RecommendationsPopupProps) => {
@@ -20,7 +20,7 @@ const RecommendationsPopup = ({ recommendations, closePopup }: RecommendationsPo
       flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
-      zIndex: 1300  // Ensures it is above other UI elements
+      zIndex: 1300
     }}>
       <IconButton
         sx={{

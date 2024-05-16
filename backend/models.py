@@ -6,7 +6,7 @@ class RecommendationRequest(BaseModel):
     movie_ratings: List[Dict[str, float]] = Field(
         default=[],
         description="List of movie IDs with corresponding user ratings."
-    )
+    )   
 
 class MovieModel(BaseModel):
     id: str

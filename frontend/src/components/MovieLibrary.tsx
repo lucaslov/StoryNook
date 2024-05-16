@@ -3,13 +3,11 @@ import { Box, Grid, Button, Pagination, TextField } from '@mui/material';
 import MovieTile from './MovieTile';
 import { GetMoviesResponse } from '../interfaces/GetMoviesResponse';
 import { LibraryMovie } from '../interfaces/LibraryMovie';
-import { checkEndpointStatus, fetchMovies } from '../repositories/MoviesRepository';
+import { fetchMovies } from '../repositories/MoviesRepository';
 import SelectedMovies from './SelectedMovies';
 import RecommendationsPopup from './RecommendationsPopup';
-import { ExtendedMovie } from '../interfaces/ExtendedMovie';
 
 const DEFAULT_ITEM_LEN = 24;
-const PLACEHOLDER_IMAGE = "https://via.placeholder.com/150?text=Poster+Not+Available";
 
 const MovieLibrary = () => {
     const [movies, setMovies] = useState<GetMoviesResponse>();
@@ -17,72 +15,87 @@ const MovieLibrary = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [searchValue, setSearchValue] = useState("");
     const [numberOfPages, setNumberOfPages] = useState(1);
-    const [selectedMovies, setSelectedMovies] = useState<ExtendedMovie[]>([]);
+    const [selectedMovies, setSelectedMovies] = useState<LibraryMovie[]>([]);
     const [showRecommendationsPopup, setShowRecommendationsPopup] = useState(false);
-    const [recommendations, setRecommendations] = useState<ExtendedMovie[]>([]);
+    const [recommendations, setRecommendations] = useState<LibraryMovie[]>([]);
 
     useEffect(() => {
-        fetchMovies(searchValue, DEFAULT_ITEM_LEN, currentPage).then((data) => {
-            setMovies(data);
-            setMoviesToShow(data.items);
-            setNumberOfPages(data.pages);
-        });
-    }, []);
-
-    useEffect(() => {
-        fetchMovies(searchValue, DEFAULT_ITEM_LEN, currentPage).then((data) => {
+        fetchMovies("", DEFAULT_ITEM_LEN, currentPage).then((data) => {
             setMovies(data);
             setMoviesToShow(data.items);
             setNumberOfPages(data.pages);
         });
     }, [currentPage]);
 
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            if (searchValue.length >= 3) {
+                setCurrentPage(1);
+                fetchMovies(searchValue, DEFAULT_ITEM_LEN, 1).then((data) => {
+                    setMovies(data);
+                    setMoviesToShow(data.items);
+                    setNumberOfPages(data.pages);
+                });
+            }
+        }, 500); // 500ms delay
+
+        return () => {
+            clearTimeout(handler);
+        };
+    }, [searchValue]);
+
+    useEffect(() => {
+        if (searchValue.length >= 3) {
+            fetchMovies(searchValue, DEFAULT_ITEM_LEN, currentPage).then((data) => {
+                setMovies(data);
+                setMoviesToShow(data.items);
+                setNumberOfPages(data.pages);
+            });
+        } else {
+            fetchMovies("", DEFAULT_ITEM_LEN, currentPage).then((data) => {
+                setMovies(data);
+                setMoviesToShow(data.items);
+                setNumberOfPages(data.pages);
+            });
+        }
+    }, [currentPage, searchValue]);
+
     const handlePageChange = (_event: any, value: React.SetStateAction<number>) => {
         setCurrentPage(value);
     };
 
-    const handleMovieSearch = (_event: React.MouseEvent<HTMLButtonElement, MouseEvent>): void => {
-        fetchMovies(searchValue).then((data) => {
+    const handleClear = (_event: React.MouseEvent<HTMLButtonElement, MouseEvent>): void => {
+        setSearchValue("");
+        setCurrentPage(1); // Reset to first page on clear
+        fetchMovies("", DEFAULT_ITEM_LEN, 1).then((data) => {
+            setMovies(data);
             setMoviesToShow(data.items);
             setNumberOfPages(data.pages);
         });
     };
 
-    const handleClear = (_event: React.MouseEvent<HTMLButtonElement, MouseEvent>): void => {
-        setSearchValue("");
-        setMoviesToShow(movies?.items || []);
-        if (movies) {
-            setNumberOfPages(movies.pages);
-        }
-    };
-
     const handleSearchValueChange = (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>): void => {
         setSearchValue(event.target.value);
-        if (!event.target.value && movies) {
-            setMoviesToShow(movies.items);
-            setNumberOfPages(movies.pages);
-        }
     };
 
-    const addMovieToSelected = async (movie: LibraryMovie) => {
+    const addMovieToSelected = async (movie: LibraryMovie, rating: number) => {
         if (!selectedMovies.find(m => m.id === movie.id)) {
-            const isValid = await checkEndpointStatus(movie.posterPath);
-            const extendedMovie: ExtendedMovie = {
-                ...movie,
-                currentImageSrc: isValid ? movie.posterPath : PLACEHOLDER_IMAGE
-            };
-            setSelectedMovies([...selectedMovies, extendedMovie]);
+            movie.rating = rating;
+            setSelectedMovies([...selectedMovies, movie]);
         }
     };
 
-    const removeMovie = (id: Number) => {
+    const removeMovie = (id: number) => {
         setSelectedMovies(selectedMovies.filter(movie => movie.id !== id));
     };
 
-    const triggerRecommendations = async () => {
-        const movieIds = selectedMovies.map(movie => movie.id);
-        const requestBody = JSON.stringify({ movie_ids: movieIds });
+    const updateMovieRating = (id: number, rating: number) => {
+        setSelectedMovies(selectedMovies.map(movie => movie.id === id ? { ...movie, rating } : movie));
+    };
 
+    const triggerRecommendations = async () => {
+        const moviesForRecommendation = selectedMovies.map(movie => { return { "movie_id": movie.id, "user_rating": movie.rating * 2 } });
+        const requestBody = JSON.stringify({ "movie_ratings": moviesForRecommendation });
         try {
             const response = await fetch('http://localhost:8000/recommend', {
                 method: 'POST',
@@ -105,10 +118,10 @@ const MovieLibrary = () => {
             }
 
             const fetchedRecommendations = await Promise.all(data.recommended_movies.map(async (mov: { title: string, posterPath: string }) => {
-                const isValid = await checkEndpointStatus(mov.posterPath);
                 return {
                     title: mov.title,
-                    currentImageSrc: isValid ? mov.posterPath : PLACEHOLDER_IMAGE
+                    currentImageSrc: mov.posterPath,
+                    rating: 0 // Initialize the rating for recommended movies
                 };
             }));
 
@@ -139,15 +152,14 @@ const MovieLibrary = () => {
                     variant="outlined"
                 />
                 <Button onClick={handleClear} variant="contained" sx={{ height: '56px' }} color='secondary'>Clear</Button>
-                <Button onClick={handleMovieSearch} variant="contained" sx={{ height: '56px', marginLeft: 1 }}>Search</Button>
             </Box>
             <Box sx={{ display: 'flex', flexDirection: 'row', width: '100%' }}>
                 <Box sx={{ width: '70vw', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                     <Grid container spacing={2} justifyContent={"center"}>
                         {moviesToShow.length !== 0 ?
                             moviesToShow.map((movie: LibraryMovie) => (
-                                <Grid item key={movie.id} onClick={() => addMovieToSelected(movie)}>
-                                    <MovieTile imageSrc={movie.posterPath} title={movie.title} key={movie.id} />
+                                <Grid item key={movie.id}>
+                                    <MovieTile movieId={movie.id} onClick={(rating: number) => addMovieToSelected(movie, rating)} />
                                 </Grid>
                             )) :
                             <h2>{searchValue ? "No movies satisfy your query. Clear your search or adjust the query." : "Wait for the movies to load..."}</h2>
@@ -158,6 +170,7 @@ const MovieLibrary = () => {
                 <SelectedMovies
                     selectedMovies={selectedMovies}
                     removeMovie={removeMovie}
+                    updateMovieRating={updateMovieRating}
                     triggerRecommendations={triggerRecommendations}
                     clearSelectedMovies={clearSelectedMovies}
                 />

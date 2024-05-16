@@ -96,7 +96,7 @@ function MenuBar() {
                                 key='MovieLibrary'
                                 onClick={handleCloseNavMenu}
                                 sx={{ my: 2, color: 'white', display: 'block' }}>
-                                My Library
+                                Library
                             </Button>
                         </Link>
 

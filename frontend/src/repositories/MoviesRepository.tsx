@@ -8,12 +8,3 @@ export async function fetchMovies(q: string = '', pSize: number = 1, pNum: numbe
     const responseData: GetMoviesResponse = response.data;
     return responseData;
 }
-
-export async function checkEndpointStatus(endpoint: string): Promise<boolean> {
-    try {
-        const response: AxiosResponse = await axios.head(endpoint);
-        return response.status >= 200 && response.status < 300;
-    } catch (error) {
-        return false;
-    }
-}

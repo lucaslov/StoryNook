@@ -5,14 +5,28 @@ import Typography from '@mui/material/Typography';
 import { Box, CardActionArea, CardActions, Rating } from '@mui/material';
 import { useState, useEffect } from 'react';
 import StarIcon from '@mui/icons-material/Star';
-import { checkEndpointStatus } from '../repositories/MoviesRepository';
+import axios from 'axios';
 
-const PLACEHOLDER_IMAGE = "https://via.placeholder.com/150?text=Poster+Not+Available";
+const MovieTile = ({ movieId, onClick }: { movieId: number, onClick: (rating: number) => void }) => {
 
-const MovieTile = ({ imageSrc, title }: { imageSrc: string, title: string }) => {
-    const [starsValue, setStarsValue] = useState(0);
+    useEffect(() => {
+        const fetchMovieData = async () => {
+            try {
+                const response = await axios.get(`http://0.0.0.0:8000/movies/${movieId}`);
+                setTitle(response.data.title);
+                setPosterPath(response.data.posterPath);
+            } catch (error) {
+                console.error("Failed to fetch movie data:", error);
+            }
+        };
+
+        fetchMovieData();
+    }, [movieId]);
+
+    const [rating, setRating] = useState(0);
     const [hover, setHover] = useState(-1);
-    const [currentImageSrc, setCurrentImageSrc] = useState(imageSrc);
+    const [title, setTitle] = useState('');
+    const [posterPath, setPosterPath] = useState('');
 
     const labels: { [index: string]: string } = {
         0.5: 'Useless',
@@ -31,14 +45,6 @@ const MovieTile = ({ imageSrc, title }: { imageSrc: string, title: string }) => 
         return `${value} Star${value !== 1 ? 's' : ''}, ${labels[value]}`;
     }
 
-    useEffect(() => {
-        checkEndpointStatus(imageSrc).then(isValid => {
-            if (!isValid) {
-                setCurrentImageSrc(PLACEHOLDER_IMAGE);
-            }
-        });
-    }, [imageSrc]);
-
     return (
         <Card sx={{
             width: '15vw',
@@ -48,11 +54,11 @@ const MovieTile = ({ imageSrc, title }: { imageSrc: string, title: string }) => 
             alignItems: 'center',
             overflow: 'hidden',
         }}>
-            <CardActionArea>
+            <CardActionArea onClick={() => onClick(10)}>
                 <CardMedia
                     component="img"
                     height="200vh"
-                    image={currentImageSrc}
+                    image={posterPath}
                 />
                 <CardContent>
                     <Typography gutterBottom variant="h5" component="div" sx={{
@@ -64,23 +70,28 @@ const MovieTile = ({ imageSrc, title }: { imageSrc: string, title: string }) => 
                     </Typography>
                 </CardContent>
             </CardActionArea>
-            <CardActions>
-                <Rating
-                    name="hover-feedback"
-                    value={starsValue}
-                    precision={0.5}
-                    getLabelText={getLabelText}
-                    onChange={(_, newValue) => {
-                        setStarsValue(newValue ?? 0);
-                    }}
-                    onChangeActive={(_, newHover) => {
-                        setHover(newHover);
-                    }}
-                    emptyIcon={<StarIcon style={{ opacity: 0.55 }} fontSize="inherit" />}
-                />
-                {starsValue !== null && (
-                    <Box sx={{ ml: 2 }}>{labels[hover !== -1 ? hover : starsValue]}</Box>
-                )}
+            <CardActions sx={{ justifyContent: 'center', width: '100%' }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <Rating
+                        name="hover-feedback"
+                        value={rating}
+                        precision={0.5}
+                        getLabelText={getLabelText}
+                        onChange={(_, newValue) => {
+                            setRating(newValue ?? 0);
+                            if (newValue) {
+                                onClick(newValue)
+                            }
+                        }}
+                        onChangeActive={(_, newHover) => {
+                            setHover(newHover);
+                        }}
+                        emptyIcon={<StarIcon style={{ opacity: 0.55 }} fontSize="inherit" />}
+                    />
+                    <Box sx={{ mt: 1 }}>
+                        {labels[hover !== -1 ? hover : rating]}
+                    </Box>
+                </Box>
             </CardActions>
         </Card>
     );

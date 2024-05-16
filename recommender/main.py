@@ -10,10 +10,6 @@ movies = pd.read_csv('movies.csv')
 ratings = pd.read_csv('ratings.csv')
 tags = pd.read_csv('tags.csv')
 
-# # Take the first 10% of the dataset
-# num_records = int(len(ratings) * 0.05)
-# ratings_sample = ratings.iloc[:num_records]
-
 # Merge ratings and movies dataframes
 data = pd.merge(ratings, movies, on='movieId')
 

@@ -1,8 +1,11 @@
 import pandas as pd
 import matplotlib.pyplot as plt
+import os
 
-ratings = pd.read_csv('ratings.csv')
-movies = pd.read_csv('movies.csv')
+current_script_dir = os.path.dirname(os.path.abspath(__file__))
+
+ratings = pd.read_csv(current_script_dir + '/data/ml-20m/ratings.csv')
+movies = pd.read_csv(current_script_dir + '/data/ml-20m/movies.csv')
 
 # Total number of users
 num_users = ratings['userId'].nunique()

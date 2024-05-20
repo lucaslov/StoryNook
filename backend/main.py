@@ -2,7 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi_pagination import add_pagination
 import uvicorn
-from routes import router as api_router
+from routes import api_router as api_router
+from chat import llm_router as llm_router
 
 app = FastAPI(
     title="Movie Recommendation API",
@@ -27,6 +28,7 @@ app.add_middleware(
 
 # Include the API routes
 app.include_router(api_router)
+app.include_router(llm_router)
 
 # Add pagination
 add_pagination(app)

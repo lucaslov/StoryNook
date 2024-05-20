@@ -1,38 +1,40 @@
-import pandas as pd
-from fastapi import FastAPI, HTTPException, Request
-from pydantic import BaseModel
+from fastapi import HTTPException, APIRouter
 import chromadb
-from chromadb.config import Settings
-from chromadb.utils import embedding_functions
-from sklearn.feature_extraction.text import TfidfVectorizer
-from transformers import AutoModel, pipeline, AutoModelForCausalLM, AutoTokenizer, GenerationConfig
-import torch
-import os
-from fastapi.middleware.cors import CORSMiddleware
-import torch
-from langchain import HuggingFacePipeline
-from langchain_community.llms import LlamaCpp
 from langchain_core.callbacks import CallbackManager, StreamingStdOutCallbackHandler
-from langchain_core.prompts import PromptTemplate
-from llama_index.core import SimpleDirectoryReader, VectorStoreIndex
 from llama_index.llms.llama_cpp import LlamaCPP
 from llama_index.llms.llama_cpp.llama_utils import (
     messages_to_prompt,
     completion_to_prompt,
 )
-n_gpu_layers = -1  # The number of layers to put on the GPU. The rest will be on the CPU. If you don't know how many layers there are, you can use -1 to move all to GPU.
-n_batch = 512  # Should be between 1 and n_ctx, consider the amount of RAM of your Apple Silicon Chip.
-# Make sure the model path is correct for your system!
-callback_manager = CallbackManager([StreamingStdOutCallbackHandler()])
-model_url = "https://huggingface.co/TheBloke/Llama-2-13B-chat-GGUF/resolve/main/llama-2-13b-chat.ggmlv3.q4_0.bin"
+import re
+from chromadb.utils import embedding_functions
+import os
+from langchain.document_loaders import CSVLoader
+from langchain.embeddings.sentence_transformer import SentenceTransformerEmbeddings
+from langchain.vectorstores import Chroma
 
+llm_router = APIRouter()
+
+# Load movie data
+current_script_dir = os.path.dirname(os.path.abspath(__file__))
+# movie_data = pd.read_csv(os.path.join(current_script_dir, '../data/scrapped/combined_for_embeddings.csv'), sep=';')
+file_path=os.path.join(current_script_dir, '../data/scrapped/combined_for_embeddings.csv')
+loader = CSVLoader(file_path=file_path,
+                   source_column="movieId",
+                   csv_args={"delimiter": ";", "quotechar": '"',}
+                   )
+documents = loader.load()
+embedding_function = SentenceTransformerEmbeddings(model_name="all-MiniLM-L6-v2")
+
+db = Chroma.from_documents(documents, embedding_function)
+
+# Initialize the LLM model
+callback_manager = CallbackManager([StreamingStdOutCallbackHandler()])
 llm = LlamaCPP(
-    model_path='/Users/lukasz/Downloads/Llama.gguf',
+    model_path='/Users/lukasz/Desktop/StoryNook/data/llamaModels/smaller.gguf',
     temperature=0.1,
     max_new_tokens=256,
-    # llama2 has a context window of 4096 tokens, but we set it lower to allow for some wiggle room
     context_window=3900,
-    # kwargs to pass to __call__()
     generate_kwargs={},
     model_kwargs={"n_gpu_layers": -1},
     messages_to_prompt=messages_to_prompt,
@@ -40,141 +42,61 @@ llm = LlamaCPP(
     verbose=True,
 )
 
-question = """
-Question: A rap battle between Stephen Colbert and John Oliver
-"""
-res=llm.complete(question)
-print(res)
-# Load movie data
-current_script_dir = os.path.dirname(os.path.abspath(__file__))
-movie_data = pd.read_csv(os.path.join(current_script_dir, '../data/scrapped/combined_for_embeddings.csv'), sep=';')
+# Initialize ChromaDB client and collection
+chroma_client = chromadb.PersistentClient(path="/Users/lukasz/Desktop/StoryNook/data/chroma")
+collection = chroma_client.get_collection(name="movie_recommendations")
+embedding_fn = embedding_functions.DefaultEmbeddingFunction()
 
+class LlmRecommendResponse:
+  def __init__(self, llmResponse, context):
+    self.llmResponse = llmResponse
+    self.context = context
 
+# Define the API endpoint
+@llm_router.post("/llm-recommend")
+async def recommend_movies(user_input: str):
+    # Preliminary check: Is the user request about movies?
+    domain_check_prompt = f"Is the following user input about movies? Answer yes or no. Input: {user_input}"
+    domain_check_response = llm.complete(domain_check_prompt)
+    is_movie_related = "yes" in domain_check_response.text.lower()
 
+    if not is_movie_related:
+        raise HTTPException(status_code=400, detail="This service is for movie recommendations only. Please provide a movie-related request.")
 
-# # Initialize ChromaDB and load data
-# chroma_client = chromadb.Client(Settings(chroma_dir="path/to/chromadb", persist_directory="path/to/persist"))
-# collection = chroma_client.create_collection(name="movie_recommendations")
+    # Generate a list of tags from the user input
+    tags_prompt = f"Extract tags from the following user input for a movie recommendation. Return only the tags and nothing else, return them as comma separated values in a following format: ['tag', 'another tag']. Input: {user_input}"
+    tags_response = llm.complete(tags_prompt).text
 
-# # Function to embed text using a local model
-# model_name = 'sentence-transformers/all-MiniLM-L6-v2'
-# tokenizer = AutoTokenizer.from_pretrained(model_name)
-# model = AutoModel.from_pretrained(model_name)
+    tags_pattern = re.compile(r"\['(.*?)'\]")
+    tags_match = tags_pattern.search(tags_response)
 
-# def embed_text(text):
-#     inputs = tokenizer(text, return_tensors='pt', truncation=True, padding=True)
-#     with torch.no_grad():
-#         embeddings = model(**inputs).last_hidden_state[:, 0, :]
-#     return embeddings.numpy()[0]
+    if tags_match:
+        tags = tags_match.group(0)
+        search_query = " ".join(tags) + user_input
+    else:
+        search_query = user_input
+    
+    # Perform similarity search in ChromaDB
+    docs = db.similarity_search(search_query)
+    
+    title_pattern = re.compile(r"title: (.+)")
+    description_pattern = re.compile(r"description: (.+)")
 
-# # Add movie data to ChromaDB collection
-# for idx, row in movie_data.iterrows():
-#     embedding = embed_text(row['description'])
-#     collection.add(
-#         embeddings=[embedding],
-#         documents=[{
-#             'movieId': row['movieId'],
-#             'title': row['title'],
-#             'genres': row['genres'],
-#             'median_rating': row['median_rating'],
-#             'tags': row['tags'],
-#             'description': row['description']
-#         }],
-#         ids=[str(row['movieId'])]
-#     )
+    # List to hold the extracted objects
+    extracted_movies = []
 
-# # Define request and response models
-# class UserInput(BaseModel):
-#     message: str
-#     conversation_id: str
+    for doc in docs:
+        title_match = title_pattern.search(doc.page_content)
+        description_match = description_pattern.search(doc.page_content)
+        
+        title = title_match.group(1) if title_match else None
+        description = description_match.group(1) if description_match else None
+        
+        if title and description:
+            extracted_movies.append({"title": title, "description": description})
+        
+    resp_prompt = f"Based on the provided context, evaluate and answer the user's query. Query: {user_input}. Context: {extracted_movies}"
 
-# class MovieRecommendation(BaseModel):
-#     movieId: int
-#     title: str
-#     genres: str
-#     median_rating: float
-#     description: str
+    resp = llm.complete(resp_prompt).text
 
-# # Load a local Llama model for generating responses
-# llama_model_name = "huggingface/llama"
-# llama_tokenizer = AutoTokenizer.from_pretrained(llama_model_name)
-# llama_model = AutoModel.from_pretrained(llama_model_name)
-# llama_pipeline = pipeline("text-generation", model=llama_model, tokenizer=llama_tokenizer)
-
-# # In-memory conversation storage
-# conversations = {}
-
-# # Define the API endpoints
-# @app.post("/recommend", response_model=list[MovieRecommendation])
-# async def recommend_movies(user_input: UserInput):
-#     user_message = user_input.message
-#     conversation_id = user_input.conversation_id
-
-#     # Retrieve or initialize conversation context
-#     if conversation_id not in conversations:
-#         conversations[conversation_id] = []
-
-#     # Step 4: Extract keywords
-#     vectorizer = TfidfVectorizer(stop_words='english')
-#     X = vectorizer.fit_transform([user_message])
-#     keywords = vectorizer.get_feature_names_out()
-
-#     # Step 5: Search for matching movies in ChromaDB
-#     results = collection.query(query_texts=[user_message], n_results=20)
-
-#     if not results["documents"]:
-#         raise HTTPException(status_code=404, detail="No matching movies found")
-
-#     # Step 6: Filter and recommend movies using the local Llama model
-#     prompt = (
-#         "You are a movie recommendation assistant. Based on the following user input, "
-#         "provide a list of movies that match their preferences:\n\n"
-#         f"User Input: {user_message}\n\n"
-#         "Matching Movies:\n"
-#     )
-#     for movie in results["documents"]:
-#         prompt += (
-#             f"Title: {movie['title']}\n"
-#             f"Genres: {movie['genres']}\n"
-#             f"Median Rating: {movie['median_rating']}\n"
-#             f"Description: {movie['description']}\n\n"
-#         )
-#     prompt += (
-#         "Based on the above information, provide a curated list of movie recommendations that best match the user's preferences."
-#     )
-
-#     llama_response = llama_pipeline(prompt, max_length=300, num_return_sequences=1, temperature=0.7)
-#     recommendations_text = llama_response[0]['generated_text'].strip().split('\n\n')
-
-#     recommended_movies = []
-#     for rec in recommendations_text:
-#         lines = rec.split('\n')
-#         movie_info = {}
-#         for line in lines:
-#             if line.startswith("Title:"):
-#                 movie_info['title'] = line.replace("Title: ", "").strip()
-#             elif line.startswith("Genres:"):
-#                 movie_info['genres'] = line.replace("Genres: ", "").strip()
-#             elif line.startswith("Median Rating:"):
-#                 movie_info['median_rating'] = float(line.replace("Median Rating: ", "").strip())
-#             elif line.startswith("Description:"):
-#                 movie_info['description'] = line.replace("Description: ", "").strip()
-
-#         # Find the movie ID from the original data
-#         for idx, row in movie_data.iterrows():
-#             if row['title'] == movie_info.get('title'):
-#                 movie_info['movieId'] = int(row['movieId'])
-#                 break
-
-#         if movie_info:
-#             recommended_movies.append(MovieRecommendation(**movie_info))
-
-#     # Update conversation context
-#     conversations[conversation_id].append(user_message)
-
-#     return recommended_movies
-
-# # Run the application
-# if __name__ == "__main__":
-#     import uvicorn
-#     uvicorn.run(app, host="0.0.0.0", port=8000)
+    return LlmRecommendResponse(llmResponse=resp, context=docs)

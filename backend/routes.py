@@ -7,9 +7,9 @@ from utils import get_poster_path
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 
-router = APIRouter()
+api_router = APIRouter()
 
-@router.get("/movies/{movie_id}", response_model=MovieModel, summary="Get a movie by its ID", description="Fetch a single movie by its ID and return its details including the poster path.")
+@api_router.get("/movies/{movie_id}", response_model=MovieModel, summary="Get a movie by its ID", description="Fetch a single movie by its ID and return its details including the poster path.")
 def get_movie(movie_id: str):
     # Fetch a single movie by ID or raise a 404 if not found
     movie = next((movie for movie in movies if movie.id == movie_id), None)
@@ -18,7 +18,7 @@ def get_movie(movie_id: str):
     movie.posterPath = get_poster_path(movie_id, movie_to_tmdb_map)
     return movie
 
-@router.get('/movies', response_model=Page[MovieModel], summary="Get all movies", description="Fetch all movies or search for a movie by its title.")
+@api_router.get('/movies', response_model=Page[MovieModel], summary="Get all movies", description="Fetch all movies or search for a movie by its title.")
 def get_movies(q: Union[str, None] = None) -> Page[MovieModel]:
     # Optionally filter movies by query string or return all
     if q:
@@ -64,7 +64,7 @@ def recommend_movies(user_ratings, num_recommendations=10):
     
     return combined_recommendations
 
-@router.post("/recommend", summary="Get movie recommendations", description="Get movie recommendations based on user ratings using a combination of collaborative and content-based filtering.")
+@api_router.post("/recommend", summary="Get movie recommendations", description="Get movie recommendations based on user ratings using a combination of collaborative and content-based filtering.")
 async def get_recommendations(request: RecommendationRequest):
     # Use the parsed movie_ratings list from the request body
     movie_ratings_dict = {item['movie_id']: item['user_rating'] for item in request.movie_ratings}
